@@ -1,0 +1,44 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches: ['main'] # Set this to your default branch
+  release:
+    types: [published] # Optional: also publish on new GitHub releases
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }} # Creates an image named after your repo
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # This permission is needed to push to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }} # Your GitHub username
+          password: ${{ secrets.GITHUB_TOKEN }} # The automatically provided token
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Path to the build context (where your Dockerfile is)
+          file: ./Dockerfile # Path to your Dockerfile, if not in root
+          push: true # Pushes the image to the registry
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
